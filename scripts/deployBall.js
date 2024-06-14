@@ -8,12 +8,12 @@ const hre = require("hardhat");
 
 async function main() {
  
-  const powcc = await hre.ethers.deployContract("Powcc");
+  const ball = await hre.ethers.deployContract("Ball");
 
-  await powcc.waitForDeployment();
+  await ball.waitForDeployment();
 
   console.log(
-    `deployed to ${powcc.target}`
+    `deployed to ${ball.target}`
   );
 
 }
