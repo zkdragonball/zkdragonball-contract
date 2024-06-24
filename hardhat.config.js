@@ -20,6 +20,10 @@ module.exports = {
     astar: {
       url: `https://evm.astar.network`,
       accounts: [process.env.BSCTEST_ACCOUNT_KEY]
+    },
+    moonbase: {
+      url: `https://moonbeam-alpha.api.onfinality.io/public`,
+      accounts: [process.env.BSCTEST_ACCOUNT_KEY]
     }
   },
   etherscan: {

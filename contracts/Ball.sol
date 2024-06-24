@@ -11,19 +11,13 @@ contract Ball is ERC20, Ownable{
 
   using SafeMath for uint256;
 
-  address public constant teamAddress = 0x79E98c0b69883B44A14CBD3C974ff0C0b9B5CA78; // 团队地址
-
-  mapping(address => uint256) private _balances;
-  mapping(address => mapping(address => uint256)) private _allowances;
-  mapping(address => bool) private _whitelist;
+  mapping(address => bool) private _burnlist;
 
   uint256 private _totalSupply;
   uint256 private _burnRate = 3; // 3% burn rate
-  uint256 private _teamRate = 2; // 2% team allocation rate
-  address public pancakePair = address(0);
 
   constructor() ERC20("ZkDragonball","Ball")  {
-    _mint(msg.sender, 100_000_000e18);
+    _mint(msg.sender, 1_000_000_000e18);
   }
 
   function transfer(address recipient, uint256 amount) public override returns (bool) {
@@ -33,35 +27,39 @@ contract Ball is ERC20, Ownable{
 
   function _transfer(address from, address to, uint256 amount) internal virtual override {
       uint256 burnAmount = 0;
-      uint256 teamAmount = 0;
-      if ((!_whitelist[from] && to == pancakePair) || (from == pancakePair && !_whitelist[to])) {
-          burnAmount = amount * _burnRate / 100;
-          teamAmount = amount * _teamRate / 100;
+      if (_burnlist[from] || _burnlist[to]) {
+          burnAmount = amount.mul(_burnRate).div(1000);
       }
-      uint256 transferAmount = amount - burnAmount - teamAmount;
+      uint256 transferAmount = amount.sub(burnAmount);
       super._transfer(from, to, transferAmount);
-      if (teamAmount > 0) {
-        super._transfer(from, teamAddress, teamAmount);      
-      }
       if (burnAmount > 0) {
           _burn(from, burnAmount);
       }
   }
 
-  function setPancakePair(address pair) external onlyOwner {
-      pancakePair = pair;
+  function burn(uint256 amount) public {
+    _burn(msg.sender, amount);
   }
 
-   function addToWhitelist(address account) external onlyOwner {
-      _whitelist[account] = true;
+  function addToBurnlist(address account) external onlyOwner {
+      _burnlist[account] = true;
   }
 
-  function removeFromWhitelist(address account) external onlyOwner {
-      _whitelist[account] = false;
+  function removeFromBurnlist(address account) external onlyOwner {
+      _burnlist[account] = false;
   }
 
-  function isWhitelisted(address account) external view returns (bool) {
-      return _whitelist[account];
+  function isBurnlisted(address account) external view returns (bool) {
+      return _burnlist[account];
+  }
+
+  function setBurnRate(uint256 newBurnRate) external onlyOwner {
+      require(newBurnRate <= 1000, "Burn rate must be less than or equal to 1000 (i.e., 100%)");
+      _burnRate = newBurnRate;
+  }
+
+  function getBurnRate() external view returns (uint256) {
+      return _burnRate;
   }
 
 }

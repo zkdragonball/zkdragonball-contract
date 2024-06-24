@@ -1,40 +1,24 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 pragma solidity ^0.8.0;
-import "./IReward.sol";
-import "./IBallStake.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./IRewarder.sol";
+import "./IMasterChef.sol";
 
-
-/**
- * This is a sample contract to be used in the MasterChefMojito contract for partners to reward
- * stakers with their native token alongside JOE.
- *
- * It assumes no minting rights, so requires a set amount of YOUR_TOKEN to be transferred to this contract prior.
- * E.g. say you've allocated 100,000 XYZ to the JOE-XYZ farm over 30 days. Then you would need to transfer
- * 100,000 XYZ and set the block reward accordingly so it's fully distributed after 30 days.
- *
- */
-contract SimpleRewarderPerBlock is IRewarder, Ownable {
+contract RewardManager is Ownable,IRewarder {
     using SafeMath for uint256;
-    using SafeERC20 for IERC20;
 
     IERC20 public immutable override rewardToken;
     IERC20 public immutable lpToken;
-    IBallStake public immutable MCM;
+    IMasterChef public immutable MCM;
 
-    /// @notice Info of each MCM user.
-    /// `amount` LP token amount the user has provided.
-    /// `rewardDebt` The amount of YOUR_TOKEN entitled to the user.
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
     }
 
-    /// @notice Info of each MCM poolInfo.
-    /// `accTokenPerShare` Amount of YOUR_TOKEN each LP token is worth.
-    /// `lastRewardBlock` The last block YOUR_TOKEN was rewarded to the poolInfo.
     struct PoolInfo {
         uint256 accTokenPerShare;
         uint256 lastRewardBlock;
@@ -45,7 +29,7 @@ contract SimpleRewarderPerBlock is IRewarder, Ownable {
     /// @notice Info of each user that stakes LP tokens.
     mapping(address => UserInfo) public userInfo;
 
-    uint256 public tokenPerBlock;
+    uint256 public override tokenPerBlock;
     uint256 private constant ACC_TOKEN_PRECISION = 1e12;
 
     event OnReward(address indexed user, uint256 amount);
@@ -60,12 +44,8 @@ contract SimpleRewarderPerBlock is IRewarder, Ownable {
         IERC20 _rewardToken,
         IERC20 _lpToken,
         uint256 _tokenPerBlock,
-        IBallStake _MCM
+        IMasterChef _MCM
     ) {
-        require(Address.isContract(address(_rewardToken)), "constructor: reward token must be a valid contract");
-        require(Address.isContract(address(_lpToken)), "constructor: LP token must be a valid contract");
-        require(Address.isContract(address(_MCM)), "constructor: MasterChefMojito must be a valid contract");
-
         rewardToken = _rewardToken;
         lpToken = _lpToken;
         tokenPerBlock = _tokenPerBlock;
@@ -86,7 +66,6 @@ contract SimpleRewarderPerBlock is IRewarder, Ownable {
                 uint256 tokenReward = blocks.mul(tokenPerBlock);
                 pool.accTokenPerShare = pool.accTokenPerShare.add((tokenReward.mul(ACC_TOKEN_PRECISION) / lpSupply));
             }
-
             pool.lastRewardBlock = block.number;
             poolInfo = pool;
         }
@@ -96,17 +75,19 @@ contract SimpleRewarderPerBlock is IRewarder, Ownable {
     /// @param _tokenPerBlock The number of tokens to distribute per block
     function setRewardRate(uint256 _tokenPerBlock) external onlyOwner {
         updatePool();
-
         uint256 oldRate = tokenPerBlock;
         tokenPerBlock = _tokenPerBlock;
-
         emit RewardRateUpdated(oldRate, _tokenPerBlock);
     }
+
+    //  function getTokenPerBlock() external view returns (uint256) {
+    //     return tokenPerBlock;
+    // }
 
     /// @notice Function called by MasterChefMojito whenever staker claims JOE harvest. Allows staker to also receive a 2nd reward token.
     /// @param _user Address of user
     /// @param _lpAmount Number of LP tokens the user has
-    function onBallReward(address _user, uint256 _lpAmount) external override onlyMCM {
+    function onReward(address _user, uint256 _lpAmount) external override onlyMCM {
         updatePool();
         PoolInfo memory pool = poolInfo;
         UserInfo storage user = userInfo[_user];
@@ -116,22 +97,20 @@ contract SimpleRewarderPerBlock is IRewarder, Ownable {
             pending = (user.amount.mul(pool.accTokenPerShare) / ACC_TOKEN_PRECISION).sub(user.rewardDebt);
             uint256 balance = rewardToken.balanceOf(address(this));
             if (pending > balance) {
-                rewardToken.safeTransfer(_user, balance);
+                rewardToken.transfer(_user, balance);
             } else {
-                rewardToken.safeTransfer(_user, pending);
+                rewardToken.transfer(_user, pending);
             }
         }
-
         user.amount = _lpAmount;
         user.rewardDebt = user.amount.mul(pool.accTokenPerShare) / ACC_TOKEN_PRECISION;
-
         emit OnReward(_user, pending);
     }
 
     /// @notice View function to see pending tokens
     /// @param _user Address of user.
     /// @return pending reward for a given user.
-    function pendingTokens(address _user) external view override returns (uint256 pending) {
+    function pendingTokens(address _user) public view override returns (uint256 pending) {
         PoolInfo memory pool = poolInfo;
         UserInfo storage user = userInfo[_user];
 
@@ -147,10 +126,15 @@ contract SimpleRewarderPerBlock is IRewarder, Ownable {
         pending = (user.amount.mul(accTokenPerShare) / ACC_TOKEN_PRECISION).sub(user.rewardDebt);
     }
 
+    function checkBalance(address _user) external view returns (bool){
+        uint256 pending = pendingTokens(_user);
+        uint256 totalRewards = rewardToken.balanceOf(address(this));
+        return totalRewards >= pending;
+    }
+
     /// @notice In case rewarder is stopped before emissions finished, this function allows
     /// withdrawal of remaining tokens.
     function emergencyWithdraw() public onlyOwner {
-        rewardToken.safeTransfer(address(msg.sender), rewardToken.balanceOf(address(this)));
+        rewardToken.transfer(address(msg.sender), rewardToken.balanceOf(address(this)));
     }
 }
-        

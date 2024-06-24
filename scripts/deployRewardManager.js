@@ -7,24 +7,23 @@
 const hre = require("hardhat");
 
 async function main() {
-   const ballStake = await hre.ethers.getContractFactory("BallStake");
+  const RewardManager = await hre.ethers.getContractFactory("RewardManager");
+  const _rewardToken = '0x488D03966188487Bd1D65C863f07b298E7871282';
+  const _lpToken = '0x488D03966188487Bd1D65C863f07b298E7871282';
+  const _tokenPerBlock = hre.ethers.parseUnits("10", 18);;
+  const _MCM = '0x7FA25892CC3206e65049E383d384f6411F4B94E6';
+  
 
-  const _rewardToken = '0xf717f64ec396293E8623D54309D4Dc80D7d1952c';
-  const _lpToken = '0xf717f64ec396293E8623D54309D4Dc80D7d1952c';
-  const _tokenPerBlock =  hre.ethers.parseUnits("1000", 18);
-  const _MCM = '0x041091A62f8F2817BE554b4bf49BeBB1952018fc';
-  console.log(ballPerBlock)
-
-  const ballStakeContract = await ballStake.deploy(
-    ball,
-    ballPerBlock,
-    startBlock,
-    rewarder
+  const RewardManagerContact = await RewardManager.deploy(
+    _rewardToken,
+    _lpToken,
+    _tokenPerBlock,
+    _MCM
   );
 
 
   console.log(
-    `deployed to ${ballStakeContract.target}`
+    `deployed to ${RewardManagerContact.target}`
   );
 
 }
@@ -35,3 +34,9 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+
+
+
+
+
+

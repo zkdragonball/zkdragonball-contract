@@ -7,26 +7,20 @@
 const hre = require("hardhat");
 
 async function main() {
-   const ballStake = await hre.ethers.getContractFactory("BallStake");
 
-  const ball = '0xf717f64ec396293E8623D54309D4Dc80D7d1952c';
-  const ballPerBlock = hre.ethers.parseUnits("1000", 18);
-  const startBlock =  41212113;
-  const rewarder = '0x0000000000000000000000000000000000000000';
-  console.log(ballPerBlock)
+  const mintWar = await ethers.getContractFactory("MintWar");
 
-  const ballStakeContract = await ballStake.deploy(
-    ball,
-    ballPerBlock,
-    startBlock,
-    rewarder
-  );
+  const token = "0x488D03966188487Bd1D65C863f07b298E7871282";
+  const liquidity = "0x2950aeEB216B6BBC9344e58580bA8C4aF4C1E86c";
+  const startTime = 1718978400;
+  const endTime = 1719410400;
+  const mintWarcontract = await mintWar.deploy(token,liquidity,startTime,endTime);
 
+  await mintWarcontract.waitForDeployment();
 
   console.log(
-    `deployed to ${ballStakeContract.target}`
+    `deployed to ${mintWarcontract.target}`
   );
-
 }
 
 // We recommend this pattern to be able to use async/await everywhere
